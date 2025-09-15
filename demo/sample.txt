@@ -1,0 +1,18 @@
+Welcome to HyCrypt Demo!
+
+This is a sample text file for encryption demonstration.
+
+Content includes:
+- Plain text content
+- Multiple lines
+- UTF-8 characters: 中文测试 🔐
+- Special symbols: !@#$%^&*()
+
+This file will be used to demonstrate:
+1. File encryption with RSA algorithm
+2. File encryption with KMAC algorithm  
+3. Automatic algorithm detection during decryption
+4. File naming conventions with date and algorithm tags
+
+Date: 2024-12-15
+Purpose: HyCrypt functionality demonstration

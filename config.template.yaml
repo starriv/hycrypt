@@ -1,0 +1,40 @@
+# HyCrypt 配置模板文件
+# 此文件会在首次使用时自动复制到用户配置目录
+
+keys:
+  # 密钥存储目录（相对于配置目录）
+  key_dir: keys
+  # RSA 公钥文件名
+  public_key: public.pem
+  # RSA 私钥文件名
+  private_key: private.pem
+  # KMAC 密钥文件名
+  kmac_key: kmac.key
+
+directories:
+  # 加密文件输出目录
+  encrypted_dir: encrypted
+  # 解密文件输出目录
+  decrypted_dir: decrypted
+
+encryption:
+  # 默认加密方法: rsa 或 kmac
+  method: rsa
+  # 支持的加密方法列表
+  supported_methods: ["rsa", "kmac"]
+  # RSA 密钥长度
+  rsa_key_size: 4096
+  # AES 密钥长度（字节）
+  aes_key_size: 32
+  # KMAC 密钥长度（字节）
+  kmac_key_size: 32
+  # 加密文件扩展名
+  file_extension: .hycrypt
+
+output:
+  # 详细输出
+  verbose: false
+  # 显示进度条
+  show_progress: true
+  # 使用表情符号
+  use_emoji: true

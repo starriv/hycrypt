@@ -1,0 +1,35 @@
+# 构建产物
+hycrypt
+*.exe
+
+# 加密文件
+encrypted/
+decrypted/
+
+# 测试文件
+*.encrypted
+demo.txt
+test.txt
+test_demo.sh
+__demo__/*
+
+# 私钥文件（安全考虑）
+key/*
+
+# 配置文件（可选，根据需要决定是否提交）
+config.yaml
+
+# 系统文件
+.DS_Store
+Thumbs.db
+
+# IDE 文件
+.vscode/
+.claude
+.idea/
+*.swp
+*.swo
+prompt.md
+
+# 日志文件
+*.log

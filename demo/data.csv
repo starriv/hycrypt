@@ -1,0 +1,20 @@
+name,algorithm,key_size,performance,security_level
+RSA,Asymmetric,4096,Medium,High
+KMAC,Symmetric,256,High,High
+AES-GCM,Symmetric,256,Very High,High
+ChaCha20,Symmetric,256,Very High,High
+ECC,Asymmetric,384,High,Very High
+
+file_type,encryption_method,avg_time_ms,file_size_mb
+Text,RSA,15.2,0.001
+Text,KMAC,8.5,0.001
+Document,RSA,125.8,2.5
+Document,KMAC,85.3,2.5
+Archive,RSA,1250.6,25.0
+Archive,KMAC,890.2,25.0
+
+demo_scenario,input_type,output_format,use_case
+Basic File,File,File,Standard encryption
+Text Message,Text,Hex,Secure messaging
+Batch Files,Directory,File,Bulk processing
+Config Data,Text,File,Configuration backup

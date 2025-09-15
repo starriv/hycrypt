@@ -1,0 +1,26 @@
+{
+  "application": {
+    "name": "HyCrypt Demo App",
+    "version": "1.0.0",
+    "author": "Starriv"
+  },
+  "database": {
+    "host": "localhost",
+    "port": 5432,
+    "name": "demo_db",
+    "username": "demo_user",
+    "ssl_mode": "require"
+  },
+  "security": {
+    "encryption_enabled": true,
+    "key_rotation_days": 90,
+    "audit_logging": true
+  },
+  "features": {
+    "file_encryption": true,
+    "text_encryption": true,
+    "batch_processing": true,
+    "interactive_ui": true
+  },
+  "demo_note": "This is a sample configuration file for HyCrypt demonstration. No real credentials included."
+}
