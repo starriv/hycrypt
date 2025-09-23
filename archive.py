@@ -9,7 +9,7 @@ import zipfile
 from datetime import datetime
 
 from constants import (
-    DIRECTORY_ARCHIVE_FORMAT, DIRECTORY_ARCHIVE_SUFFIX,
+    DIRECTORY_ARCHIVE_SUFFIX,
     DIRECTORY_ARCHIVE_DATE_FORMAT, DIRECTORY_ARCHIVE_NAME_PATTERN
 )
 
