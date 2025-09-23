@@ -2,6 +2,21 @@
 
 A secure file encryption/decryption tool based on modern cryptographic standards, featuring AES-256-CBC encryption algorithm and Argon2id key derivation function. Supports file and directory encryption with password confirmation mechanism to ensure encryption security.
 
+## 🚀 Quick Start
+
+```bash
+# 安装依赖
+pip install -r requirements.txt
+
+# 运行程序
+python3 main.py
+
+# 查看帮助
+python3 main.py --help
+```
+
+📖 [详细安装指南](INSTALL.md)
+
 ## ✨ Key Features
 
 - **Dual Operation Modes**: Supports both interactive interface and command-line parameters

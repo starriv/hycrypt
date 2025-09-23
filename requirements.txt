@@ -1,0 +1,9 @@
+# hycrypt-py 依赖文件
+# 使用: pip install -r requirements.txt
+
+# 核心加密库 - 提供AES-256-CBC加密和Argon2id密钥派生功能
+cryptography>=3.4.8
+
+# 可选依赖（根据需求取消注释）
+# pytest>=6.0.0  # 如果需要运行测试
+# pytest-cov>=2.10.0  # 如果需要测试覆盖率
