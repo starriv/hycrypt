@@ -4,6 +4,7 @@ A secure file encryption/decryption tool based on modern cryptographic standards
 
 ## 🚀 Quick Start
 
+### 标准运行方式
 ```bash
 # 安装依赖
 pip install -r requirements.txt
@@ -15,7 +16,26 @@ python3 main.py
 python3 main.py --help
 ```
 
-📖 [详细安装指南](INSTALL.md)
+### 系统 PATH 配置（推荐）
+配置后可在任意目录运行：
+
+```bash
+# 一键配置脚本（推荐）
+bash scripts/setup_path.sh
+
+# 或者手动配置：
+# 需要管理员权限
+sudo ln -sf "$(pwd)/hycrypt" /usr/local/bin/hycrypt
+
+# 或者用户目录（无需管理员权限）
+mkdir -p ~/bin
+ln -sf "$(pwd)/hycrypt" ~/bin/hycrypt
+
+# 现在可以在任意目录运行
+hycrypt --help
+```
+
+📖 [详细安装指南](docs/INSTALL.md) | 📋 [PATH 配置指南](docs/PATH_SETUP.md)
 
 ## ✨ Key Features
 
