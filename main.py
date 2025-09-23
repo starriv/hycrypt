@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """
-hycrypt-py - 文件加密解密工具
-提供交互式和命令行两种操作模式
+hycrypt-py - 文件加密解密工具 (常量版本)
+提供交互式和命令行两种操作模式，支持多语言
+使用英文常量作为翻译键
 """
 
 import os
@@ -16,6 +17,42 @@ from constants import (
 from crypto import CryptoManager
 from archive import ArchiveManager
 from utils import Utils
+from i18n import (
+    _, init_locale, set_language, get_current_language,
+    APP_TITLE, APP_WELCOME, APP_ENCRYPT_FILE, APP_DECRYPT_FILE, APP_EXIT_PROGRAM,
+    MENU_FILE_ENCRYPTION, MENU_FILE_DECRYPTION,
+    INPUT_ENCRYPT_PATH, INPUT_ENCRYPT_PASSWORD, INPUT_DECRYPT_FILENAME, INPUT_DECRYPT_PASSWORD,
+    INPUT_FILENAME, INPUT_PATH, INPUT_PASSWORD, INPUT_PASSWORD_CONFIRM, INPUT_CHOICE,
+    STATUS_ENCRYPT_COMPLETE, STATUS_DECRYPT_COMPLETE, STATUS_ENCRYPT_FAILED, STATUS_DECRYPT_FAILED,
+    STATUS_PROGRAM_ERROR, STATUS_PRESS_ENTER_CONTINUE, STATUS_GOODBYE, STATUS_PROGRAM_INTERRUPTED,
+    REASON_PASSWORD_ERROR,
+    ARG_DESCRIPTION, ARG_ENCRYPT_PATH, ARG_DECRYPT_PATH, ARG_PASSWORD_HELP, ARG_OUTPUT_HELP,
+    ARG_QUIET_HELP, ARG_VERBOSE_HELP, ARG_LANGUAGE_HELP,
+    ERROR_BOTH_ENCRYPT_DECRYPT, ERROR_NO_ENCRYPT_DECRYPT, ERROR_PASSWORD_EMPTY,
+    ERROR_PATH_NOT_EXIST, ERROR_FILE_NOT_EXIST, ERROR_OPERATION_FAILED, ERROR_FILENAME_EMPTY,
+    ERROR_PATH_EMPTY, ERROR_INVALID_CHOICE,
+    SUCCESS_ENCRYPT_COMPLETE, SUCCESS_DECRYPT_COMPLETE, SUCCESS_PASSWORD_CONFIRMED,
+    SUCCESS_DIR_COMPRESSED, SUCCESS_ARCHIVE_EXTRACTED, SUCCESS_TEMP_CLEANED,
+    FILE_DETECTED_DIR_COMPRESSING, FILE_DETECTED_ARCHIVE_EXTRACTING, FILE_ARCHIVE_EXTRACT_FAILED,
+    FILE_ARCHIVE_EXTRACT_KEEP, FILE_TEMP_CLEANED,
+    FILE_INFO_FILE, FILE_INFO_SIZE, FILE_INFO_DIR, FILE_INFO_COUNT, FILE_INFO_TOTAL_SIZE,
+    FILE_INFO_ALGORITHM,
+    WARNING_PASSWORD_LENGTH, WARNING_PASSWORD_STRENGTH, WARNING_DECRYPT_EXTENSION,
+    WARNING_ARCHIVE_EXTRACT_FAILED,
+    SIZE_BYTES, SIZE_KB, SIZE_MB, SIZE_GB,
+    USAGE_EXAMPLES, USAGE_INTERACTIVE, USAGE_ENCRYPT_CLI, USAGE_DECRYPT_CLI, USAGE_OUTPUT_FILENAME,
+    LANGUAGE_SELECT, LANGUAGE_EN, LANGUAGE_ZH, LANGUAGE_ES,
+    OPERATION_SELECT,
+    EXTENSION_NOTICE, EXTENSION_SUFFIX,
+    TEST_COVERAGE, TEST_RUNNER, START_TESTS, ALL_TESTS_PASSED, SOME_TESTS_FAILED,
+    RUN_ALL_TESTS, RUN_UNIT_TESTS, RUN_INTEGRATION_TESTS, RUN_PERFORMANCE_TESTS,
+    RUN_SPECIFIC_TEST, RUN_LEGACY_TESTS, SHOW_TEST_COVERAGE, DETAILED_OUTPUT,
+    ERROR_TEST_FILE_NOT_FOUND, ERROR_NO_TEST_FILES, ERROR_PYTEST_NOT_FOUND,
+    ERROR_TEST_RUN_FAILED, RUN_TEST_COMMAND, RUN_TEST_FILE, SUCCESS_TEST_PASSED,
+    ERROR_TEST_FAILED, ERROR_RUN_TEST_ERROR, RUN_LEGACY_TEST,
+    OUTPUT_LABEL, ERROR_LABEL, TEST_RESULTS, RUN_LEGACY_FILES, TOTAL_TEST_FILES,
+    TEST_SUMMARY, UNIT_TEST_COUNT, INTEGRATION_TEST_COUNT, PERFORMANCE_TEST_COUNT
+)
 
 
 class EncryptDecryptApp:
@@ -48,11 +85,11 @@ class EncryptDecryptApp:
     
     def _encrypt_directory(self, directory_path: str, password: str) -> str:
         """加密目录"""
-        print(f"📁 检测到目录，正在压缩: {directory_path}")
+        print(_(FILE_DETECTED_DIR_COMPRESSING) + directory_path)
         
         # 创建目录压缩文件
         archive_path = self.archive_manager.create_directory_archive(directory_path)
-        print(f"✅ 目录压缩完成: {archive_path}")
+        print(_(SUCCESS_DIR_COMPRESSED) + archive_path)
         
         try:
             # 递归加密压缩文件
@@ -61,7 +98,7 @@ class EncryptDecryptApp:
             # 清理临时压缩文件
             if os.path.exists(archive_path):
                 os.remove(archive_path)
-                print(f"🗑️  临时压缩文件已清理: {archive_path}")
+                print(_(SUCCESS_TEMP_CLEANED) + archive_path)
             
             return encrypted_path
             
@@ -69,7 +106,7 @@ class EncryptDecryptApp:
             # 清理临时压缩文件
             if os.path.exists(archive_path):
                 os.remove(archive_path)
-            raise Exception(f"目录加密失败: {e}")
+            raise Exception(_(STATUS_ENCRYPT_FAILED) + str(e))
     
     def _encrypt_single_file(self, file_path: str, password: str) -> str:
         """加密单个文件"""
@@ -127,19 +164,19 @@ class EncryptDecryptApp:
             解压后的目录路径
         """
         try:
-            print(f"📁 检测到压缩文件，正在解压: {archive_path}")
+            print(_(FILE_DETECTED_ARCHIVE_EXTRACTING) + archive_path)
             extract_dir = self.archive_manager.extract_directory_archive(archive_path)
-            print(f"✅ 压缩文件解压完成，解压到: {extract_dir}")
+            print(_(SUCCESS_ARCHIVE_EXTRACTED) + extract_dir)
             
             # 清理临时压缩文件
             if os.path.exists(archive_path):
                 os.remove(archive_path)
-                print(f"🗑️  临时压缩文件已清理: {archive_path}")
+                print(_(SUCCESS_TEMP_CLEANED) + archive_path)
             
             return extract_dir
         except Exception as e:
-            print(f"⚠️  压缩文件解压失败: {e}")
-            print(f"💡 解密后的压缩文件保留在: {archive_path}")
+            print(_(FILE_ARCHIVE_EXTRACT_FAILED) + str(e))
+            print(_(FILE_ARCHIVE_EXTRACT_KEEP) + archive_path)
             return archive_path
     
     def show_file_info(self, filepath: str) -> None:
@@ -149,52 +186,57 @@ class EncryptDecryptApp:
     def show_directory_info(self, directory_path: str) -> None:
         """显示目录信息"""
         info = self.archive_manager.get_directory_info(directory_path)
-        print(f"📁 目录: {directory_path}")
-        print(f"📊 文件数量: {info['file_count']} 个")
-        print(f"📊 总大小: {info['total_size']:,} 字节 ({info['total_size']/1024:.1f} KB)")
-        print(f"🔐 算法: AES-256-CBC + Argon2id")
+        print(_(FILE_INFO_DIR) + directory_path)
+        print(_(FILE_INFO_COUNT) + str(info['file_count']) + _(" 个"))
+        print(_(FILE_INFO_TOTAL_SIZE) + f"{info['total_size']:,}" + _(" 字节 (") + f"{info['total_size']/1024:.1f}" + _(" KB)"))
+        print(_(FILE_INFO_ALGORITHM))
 
 
 def parse_arguments():
     """解析命令行参数"""
-    parser = argparse.ArgumentParser(
-        description='hycrypt-py - 文件加密解密工具，支持AES-256-Argon2id加密',
-        formatter_class=argparse.RawDescriptionHelpFormatter,
-        epilog=f"""
-使用示例:
-  # 交互式界面
+    epilog_text = _(USAGE_EXAMPLES) + """
+  # """ + _(USAGE_INTERACTIVE) + """
   python main.py
   
-  # 命令行加密
+  # """ + _(USAGE_ENCRYPT_CLI) + """
   python main.py -e file.txt -p password
   
-  # 命令行解密  
+  # """ + _(USAGE_DECRYPT_CLI) + """  
   python main.py -d file.txt.enc -p password
   
-  # 指定输出文件名
+  # """ + _(USAGE_OUTPUT_FILENAME) + """
   python main.py -e file.txt -p password -o encrypted.bin
         """
+    
+    parser = argparse.ArgumentParser(
+        description=_(ARG_DESCRIPTION),
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog=epilog_text
     )
     
+    # 语言选择
+    parser.add_argument('--lang', choices=['en', 'zh', 'es'], 
+                       help=_(ARG_LANGUAGE_HELP))
+    
     # 操作模式
-    parser.add_argument('-e', '--encrypt', metavar='FILE',
-                       help='要加密的文件路径')
-    parser.add_argument('-d', '--decrypt', metavar='FILE', 
-                       help='要解密的文件路径')
+    parser.add_argument('-e', '--encrypt', metavar='PATH',
+                       help=_(ARG_ENCRYPT_PATH))
+    parser.add_argument('-d', '--decrypt', metavar='PATH', 
+                       help=_(ARG_DECRYPT_PATH))
     
     # 密码选项
-    parser.add_argument('-p', '--password', 
-                       help='加密/解密密码 (如果不提供，将提示输入)')
+    parser.add_argument('-p', '--password', metavar='PASSWORD',
+                       help=_(ARG_PASSWORD_HELP))
     
     # 输出选项
-    parser.add_argument('-o', '--output', 
-                       help='输出文件路径 (可选)')
+    parser.add_argument('-o', '--output', metavar='PATH',
+                       help=_(ARG_OUTPUT_HELP))
     
     # 其他选项
     parser.add_argument('-q', '--quiet', action='store_true',
-                       help='安静模式，减少输出信息')
+                       help=_(ARG_QUIET_HELP))
     parser.add_argument('-v', '--verbose', action='store_true', 
-                       help='详细模式，显示更多信息')
+                       help=_(ARG_VERBOSE_HELP))
     
     return parser.parse_args()
 
@@ -207,19 +249,19 @@ def command_line_mode(app: EncryptDecryptApp, args) -> bool:
             password = args.password
         else:
             if args.encrypt:
-                password = Utils().get_password("请输入加密密码 (确认): ")
+                password = Utils().get_password(_(INPUT_ENCRYPT_PASSWORD))
             else:
-                password = getpass.getpass("请输入解密密码: ")
+                password = getpass.getpass(_(INPUT_DECRYPT_PASSWORD))
         
         if not password:
-            print("❌ 密码不能为空")
+            print(_(ERROR_PASSWORD_EMPTY))
             return False
         
         # 执行加密或解密
         if args.encrypt:
             # 检查文件或目录是否存在
             if not os.path.exists(args.encrypt):
-                print(f"❌ 路径 '{args.encrypt}' 不存在")
+                print(_(ERROR_PATH_NOT_EXIST) + args.encrypt + _("' 不存在"))
                 return False
             
             # 显示信息
@@ -236,13 +278,13 @@ def command_line_mode(app: EncryptDecryptApp, args) -> bool:
             if args.output:
                 os.rename(encrypted_path, args.output)
                 if not args.quiet:
-                    print(f"✅ 加密完成: {args.output}")
+                    print(_(SUCCESS_ENCRYPT_COMPLETE) + args.output)
             elif not args.quiet:
-                print(f"✅ 加密完成: {encrypted_path}")
+                print(_(SUCCESS_ENCRYPT_COMPLETE) + encrypted_path)
         
         elif args.decrypt:
             if not os.path.exists(args.decrypt):
-                print(f"❌ 文件 '{args.decrypt}' 不存在")
+                print(_(ERROR_FILE_NOT_EXIST) + args.decrypt + _("' 不存在"))
                 return False
             
             if not args.quiet:
@@ -255,29 +297,40 @@ def command_line_mode(app: EncryptDecryptApp, args) -> bool:
             if args.output:
                 os.rename(decrypted_path, args.output)
                 if not args.quiet:
-                    print(f"✅ 解密完成: {args.output}")
+                    print(_(SUCCESS_DECRYPT_COMPLETE) + args.output)
             elif not args.quiet:
-                print(f"✅ 解密完成: {decrypted_path}")
+                print(_(SUCCESS_DECRYPT_COMPLETE) + decrypted_path)
         
         return True
         
     except Exception as e:
-        print(f"❌ 操作失败: {e}")
+        print(_(ERROR_OPERATION_FAILED) + str(e))
         return False
+
+
+def print_menu():
+    """显示选项菜单"""
+    print("\n" + "="*50)
+    print(_(APP_TITLE))
+    print("="*50)
+    print(_(APP_ENCRYPT_FILE))
+    print(_(APP_DECRYPT_FILE)) 
+    print(_(APP_EXIT_PROGRAM))
+    print("-"*50)
 
 
 def interactive_mode(app: EncryptDecryptApp) -> None:
     """交互式模式"""
-    print("🔐 欢迎使用 hycrypt-py 文件加密解密工具！")
+    print(_(APP_WELCOME))
     
     while True:
         print_menu()
-        choice = Utils().get_user_choice("请选择操作", ['1', '2', '3'])
+        choice = Utils().get_user_choice(_(OPERATION_SELECT), ['1', '2', '3'])
         
         if choice == '1':
             # 加密
-            print("\n--- 文件/目录加密 ---")
-            path = Utils().get_path_input("请输入要加密的文件或目录路径: ")
+            print(_(MENU_FILE_ENCRYPTION))
+            path = Utils().get_path_input(_(INPUT_ENCRYPT_PATH))
             if not path:
                 continue
             
@@ -288,73 +341,82 @@ def interactive_mode(app: EncryptDecryptApp) -> None:
                 app.show_file_info(path)
             
             # 获取密码
-            password = Utils().get_password("请输入加密密码: ")
+            password = Utils().get_password(_(INPUT_ENCRYPT_PASSWORD))
             
             try:
                 # 执行加密
                 encrypted_path = app.encrypt_file(path, password)
-                print(f"\n✅ 加密完成！加密文件: {encrypted_path}")
+                print(_(STATUS_ENCRYPT_COMPLETE) + encrypted_path)
             except Exception as e:
-                print(f"\n❌ 加密失败: {e}")
+                print(_(STATUS_ENCRYPT_FAILED) + str(e))
         
         elif choice == '2':
             # 解密
-            print("\n--- 文件解密 ---")
-            filename = Utils().get_filename_input(f"请输入要解密的文件名 ({ENCRYPTED_FILE_EXTENSION}): ")
+            print(_(MENU_FILE_DECRYPTION))
+            filename = Utils().get_filename_input(_(INPUT_DECRYPT_FILENAME))
             if not filename:
                 continue
             
             if not filename.endswith(ENCRYPTED_FILE_EXTENSION):
-                print(f"⚠️  注意: 解密文件通常以 {ENCRYPTED_FILE_EXTENSION} 为扩展名")
+                print(_(WARNING_DECRYPT_EXTENSION) + ENCRYPTED_FILE_EXTENSION + _(EXTENSION_SUFFIX))
             
             app.show_file_info(filename)
-            password = Utils().get_password("请输入解密密码: ")
+            password = Utils().get_password(_(INPUT_DECRYPT_PASSWORD))
             
             try:
                 # 执行解密
                 decrypted_path = app.decrypt_file(filename, password)
-                print(f"\n✅ 解密完成！解密文件: {decrypted_path}")
+                print(_(STATUS_DECRYPT_COMPLETE) + decrypted_path)
                 
                 # 显示解密文件信息
                 if os.path.exists(decrypted_path):
                     app.show_file_info(decrypted_path)
                     
             except Exception as e:
-                print(f"\n❌ 解密失败: {e}")
-                print("可能原因: 密码错误或文件损坏")
+                print(_(STATUS_DECRYPT_FAILED) + str(e))
+                print(_(REASON_PASSWORD_ERROR))
         
         elif choice == '3':
-            print("\n👋 感谢使用，再见！")
+            print(_(STATUS_GOODBYE))
             break
         
-        input("\n按回车键继续...")
-
-
-def print_menu():
-    """显示选项菜单"""
-    print("\n" + "="*50)
-    print("           hycrypt-py 文件加密解密工具")
-    print("="*50)
-    print("1. 加密文件")
-    print("2. 解密文件") 
-    print("3. 退出程序")
-    print("-"*50)
+        input(_(STATUS_PRESS_ENTER_CONTINUE))
 
 
 def main():
     """主函数"""
+    # 初始化国际化
+    init_locale(os.path.join(os.path.dirname(__file__), 'i18n', 'translations', 'translations_constants.json'))
+    
+    # 解析命令行参数（先简单解析以获取语言设置）
+    import sys
+    lang = None
+    for i, arg in enumerate(sys.argv):
+        if arg == '--lang' and i + 1 < len(sys.argv):
+            lang = sys.argv[i + 1]
+            break
+        elif arg.startswith('--lang='):
+            lang = arg.split('=', 1)[1]
+            break
+    
+    # 设置语言
+    if lang:
+        lang_map = {'en': 'en_US', 'zh': 'zh_CN', 'es': 'es_ES'}
+        set_language(lang_map.get(lang, 'zh_CN'))
+    
+    # 解析命令行参数
+    args = parse_arguments()
+    
     app = EncryptDecryptApp()
     
     # 如果有命令行参数，使用命令行模式
-    if len(sys.argv) > 1:
-        args = parse_arguments()
-        
+    if len(sys.argv) > 1 and not (args.lang and len(sys.argv) <= 3):
         # 验证参数
         if args.encrypt and args.decrypt:
-            print("❌ 不能同时指定加密和解密")
+            print(_(ERROR_BOTH_ENCRYPT_DECRYPT))
             return 1
         elif not args.encrypt and not args.decrypt:
-            print("❌ 请指定 -e (加密) 或 -d (解密)")
+            print(_(ERROR_NO_ENCRYPT_DECRYPT))
             return 1
         
         # 执行命令行操作
@@ -367,10 +429,10 @@ def main():
             interactive_mode(app)
             return 0
         except KeyboardInterrupt:
-            print("\n\n👋 程序被用户中断，再见！")
+            print(_(STATUS_PROGRAM_INTERRUPTED))
             return 0
         except Exception as e:
-            print(f"\n❌ 程序发生错误: {e}")
+            print(_(STATUS_PROGRAM_ERROR) + str(e))
             return 1
 
 
