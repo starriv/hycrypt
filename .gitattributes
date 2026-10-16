@@ -1,0 +1,2 @@
+# Preserve checksum-pinned third-party sources exactly as upstream.
+Vendor/** -whitespace
