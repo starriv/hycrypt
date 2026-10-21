@@ -20,9 +20,11 @@ status from URL volume-encryption attributes: they do not reliably represent
 FileVault on modern APFS systems. Check FileVault in System Settings instead.
 The vendored reference implementation itself is unmodified and checksum-pinned.
 
-Passwords must be nonempty; length and complexity do not block encryption.
-The app trims leading/trailing whitespace from new passwords and confirmation,
-and rejects internal whitespace. Decryption preserves the original password.
+Passwords must be nonempty; new encryption passwords are limited to 4096 UTF-8
+bytes, but complexity is not required. The app trims leading/trailing whitespace
+from new passwords and confirmation, and rejects internal whitespace. Decryption
+preserves the original password and does not impose the new-password length
+limit, so legacy ciphertexts remain readable.
 The local strength indicator is advisory only, not an entropy estimate. Passwords are hashed as UTF-8
 without normalization, so the UI warns when a new password contains non-ASCII.
 Password fields use `NSSecureTextField` while hidden. An explicit eye toggle
@@ -113,21 +115,26 @@ A document opened while the app is locked (for example by double-clicking a
 `.hycrypt` file at launch) is held until unlock and discarded by locking.
 
 The general file workflow still needs plaintext staging for ZIP creation and
-explicit file restoration. That staging is a 0700 directory from
-`itemReplacementDirectory` on the destination volume, not inside the selected
-folder, so a client syncing only that folder cannot upload in-progress plaintext.
-`isExcludedFromBackup` is still set; it does not by itself stop iCloud Drive.
-If the destination volume is not local, the plaintext ZIP stays in the app's
-local temporary directory and only the finished result is copied onto that volume.
+explicit file restoration. On a destination volume that also holds the app's
+private temporary directory, staging uses a 0700 `hycrypt-staging` root there;
+on other volumes it uses a descriptor-owned `itemReplacementDirectory` probe.
+Both are outside the selected folder, so a client syncing only that folder cannot
+upload in-progress plaintext. `isExcludedFromBackup` is still set; it does not by
+itself stop iCloud Drive.
+If the destination volume is not local or is cloud-synced, the plaintext ZIP
+stays in the app's local temporary directory and only the finished result is
+copied onto that volume. Local `hycrypt-scratch-*` directories carry a `.lock`;
+a live scratch is never reclaimed, and a crashed one is removed by the next
+local-scratch creation.
 Decrypting into a synced, network or cloud-storage folder still publishes plaintext
 there; the UI warns before that. Private permissions, descriptor-anchored
 publication and normal cancellation cleanup reduce exposure; they do not guarantee
 removal after a process crash, power loss or SSD snapshots.
 A live transaction must obtain an exclusive `flock` or it fails closed. The next
-transaction on that volume removes sibling `.hycrypt-<UUID>` directories owned by
-the user that are unlocked and older than 60 seconds, using the opened directory
-descriptor rather than a path. Until then, and on media snapshots, abandoned
-plaintext can remain in the volume temporary area.
+transaction on that volume removes `.hycrypt-<UUID>` directories in the same
+staging root that are owned by the user, unlocked and older than 60 seconds, using
+the opened directory descriptor rather than a path. Until then, and on media
+snapshots, abandoned plaintext can remain in the volume temporary area.
 Text and mnemonic workflows do not use that filesystem staging path. The local
 build enables App Sandbox and Hardened Runtime with ad-hoc signing; it is not
 Developer ID signed or notarized by default; `SIGNING_IDENTITY` plus an explicit
@@ -195,5 +202,7 @@ bookmarks, refresh stale bookmark data when resolvable, and fail closed when a
 bookmark cannot be resolved or accessed. A legacy saved path alone is not treated
 as sandbox authorization. Active operations retain their source and output leases
 until completion/cancellation, even if settings change. SwiftPM tests are not
-sandboxed; `Tests/Integration/test-sandbox.sh` additionally exercises actual OS denial with
-a disposable bundle signed using the production entitlement file.
+sandboxed; `Tests/Integration/test-sandbox.sh` exercises actual OS denial with a
+disposable bundle signed using the production entitlement file, and
+`Tests/Integration/test-sandbox-file.sh` runs file and directory round trips
+inside a signed sandbox process (staging and publication path).

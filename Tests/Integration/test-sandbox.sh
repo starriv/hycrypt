@@ -6,16 +6,22 @@ cd "$(dirname "$0")/../.."
 temporary="$(mktemp -d)"
 probe_id=net.starriv.hycrypt.sandbox-probe
 # The probe is disposable; do not leave its sandbox container behind.
-trap 'rm -rf "$temporary" "$HOME/Library/Containers/$probe_id" "$HOME/Library/Application Scripts/$probe_id"' EXIT
+trap 'rm -rf "$temporary" "$HOME/Library/Containers/$probe_id" "$HOME/Library/Application Scripts/$probe_id" 2>/dev/null || true' EXIT
 printf 'public test fixture\n' > "$temporary/denied.txt"
 cat > "$temporary/probe.swift" <<'SWIFT'
 import Darwin
 import Foundation
+func denied(_ value: Int32) -> Bool { value == EPERM || value == EACCES }
 let path = CommandLine.arguments[1]
 let descriptor = open(path, O_RDONLY)
-guard descriptor == -1, errno == EPERM || errno == EACCES else {
-    if descriptor >= 0 { close(descriptor) }
-    fatalError("Sandbox did not deny ungranted file access")
+if descriptor >= 0 {
+    close(descriptor)
+    print("sandbox probe failed: ungranted file read was allowed: \(path)")
+    exit(2)
+}
+if !denied(errno) {
+    print("sandbox probe failed: file read errno=\(errno) (expected EPERM/EACCES)")
+    exit(3)
 }
 let socketFD = socket(AF_INET, SOCK_STREAM, 0)
 if socketFD >= 0 {
@@ -30,11 +36,17 @@ if socketFD >= 0 {
             connect(socketFD, $0, socklen_t(MemoryLayout<sockaddr_in>.size))
         }
     }
-    guard status == -1, errno == EPERM || errno == EACCES else {
-        fatalError("Sandbox did not deny network access")
+    if status != -1 {
+        print("sandbox probe failed: network connect was allowed")
+        exit(4)
     }
-} else {
-    guard errno == EPERM || errno == EACCES else { fatalError("Unexpected socket error") }
+    if !denied(errno) {
+        print("sandbox probe failed: connect errno=\(errno) (expected EPERM/EACCES)")
+        exit(5)
+    }
+} else if !denied(errno) {
+    print("sandbox probe failed: socket errno=\(errno) (expected EPERM/EACCES)")
+    exit(6)
 }
 print("Sandbox probe passed: ungranted file and network access denied.")
 SWIFT

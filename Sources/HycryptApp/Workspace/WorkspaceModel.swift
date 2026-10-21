@@ -98,9 +98,14 @@ final class WorkspaceModel {
         inputKind = kind
     }
 
+    /// Called when the app loses focus. All modes hide their content and revoke the local
+    /// session; only the mnemonic draft is retained for the user to resume after authentication.
+    /// Text decryption results are discarded (not merely hidden), matching docs/SECURITY.md.
     func conceal() {
-        guard inputKind == .mnemonic else { return }
-        if authorization?.isAuthenticating != true { authorization?.lock() }
+        if authorization?.isAuthenticating != true {
+            authorization?.lock()
+            pendingSource = nil
+        }
         isObscured = true
         let previousState = state
         form.clearPassword()
@@ -108,6 +113,7 @@ final class WorkspaceModel {
         if !text.password.isEmpty { text.password = "" }
         if !text.confirmation.isEmpty { text.confirmation = "" }
         text.discardDecryptedPlaintext()
+        text.conceal()
         text.mnemonic.activeIndex = nil
     }
 
@@ -152,8 +158,8 @@ final class WorkspaceModel {
     @discardableResult
     func start() -> Task<Void, Never>? {
         guard !isBusy, canAccessWindows else { return nil }
-        if !ApplicationSandbox.isEnabled { refreshOutputDirectory() }
-        guard !ApplicationSandbox.isEnabled || hasOutputAuthorization else { return nil }
+        if !ApplicationSandbox.authorizationRequired { refreshOutputDirectory() }
+        guard !ApplicationSandbox.authorizationRequired || hasOutputAuthorization else { return nil }
         guard let request = try? form.makeRequest() else { return nil }
         form.clearPassword()
         let id = UUID()

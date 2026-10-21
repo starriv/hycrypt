@@ -25,6 +25,17 @@ struct OperationFormTests {
         #expect(legacy.password.withUnsafeBytes { String(decoding: $0, as: UTF8.self) } == " a b ")
     }
 
+    @Test func overlongNewPasswordIsRejectedButLegacyDecryptionIsAllowed() throws {
+        var form = OperationForm()
+        form.selectSource(URL(fileURLWithPath: "/tmp/report.txt"))
+        let long = String(repeating: "a", count: SecretPolicy.maximumPasswordBytes + 1)
+        form.password = long
+        form.confirmation = long
+        #expect(form.validationIssue == .passwordTooLong)
+        form.selectOperation(.decrypt)
+        #expect(form.validationIssue == nil)
+    }
+
     @Test func confirmationAndOutputValidation() throws {
         var form = OperationForm()
         form.selectSource(URL(fileURLWithPath: "/tmp/report.txt"))

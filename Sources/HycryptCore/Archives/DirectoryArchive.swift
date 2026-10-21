@@ -6,6 +6,8 @@ import ZIPFoundation
 /// Only regular files and directories are accepted; links are never followed or restored.
 enum DirectoryArchive {
     static let maximumEntries = 100_000
+    static let maximumDepth = 256
+    static let maximumPathBytes = 65_535
     static let maximumExpandedBytes: UInt64 = 100 * 1_024 * 1_024 * 1_024
 
     static func pack(source: URL, destination: URL, progress: ProgressHandler) throws {
@@ -36,6 +38,9 @@ enum DirectoryArchive {
         }
 
         mutating func visit(directory: Int32, relative: [String]) throws {
+            guard relative.count <= DirectoryArchive.maximumDepth else {
+                throw HycryptError.unsafeArchive
+            }
             for name in try Self.names(in: directory) {
                 try Task.checkCancellation()
                 var info = stat()
@@ -79,17 +84,34 @@ enum DirectoryArchive {
             let path = try archivePath(path)
             var content = SHA256()
             var hashed: UInt64 = 0
+            // ZIPFoundation consumes provider chunks synchronously. Keep the previous chunk
+            // alive only until the next request (or addEntry return), then wipe the local copy.
+            // ZIPFoundation's own compression buffers remain outside this best effort.
+            var previousChunk: Data?
+            defer {
+                if previousChunk != nil {
+                    var chunk = previousChunk!
+                    SecretMemory.wipe(&chunk)
+                    previousChunk = nil
+                }
+            }
             do {
                 try archive.addEntry(
                     with: path, type: .file, uncompressedSize: Int64(before.size),
                     compressionMethod: .deflate, bufferSize: FileIO.bufferSize
                 ) { position, size in
                     try Task.checkCancellation()
+                    if previousChunk != nil {
+                        var chunk = previousChunk!
+                        SecretMemory.wipe(&chunk)
+                        previousChunk = nil
+                    }
                     guard position >= 0, UInt64(position) == hashed else { throw HycryptError.sourceChanged }
                     try input.seek(toOffset: UInt64(position))
                     let data = try FileIO.readExactly(input, count: size)
                     content.update(data: data)
                     hashed += UInt64(data.count)
+                    previousChunk = data
                     return data
                 }
             } catch HycryptError.invalidFormat {
@@ -121,9 +143,15 @@ enum DirectoryArchive {
                     break
                 }
                 let name = withUnsafeBytes(of: entry.pointee.d_name) { raw in
-                    String(decoding: raw.prefix(Int(entry.pointee.d_namlen)), as: UTF8.self)
+                    DirectoryArchive.decodeName(raw.prefix(Int(entry.pointee.d_namlen)))
                 }
-                if name != "." && name != ".." { names.append(name) }
+                guard let name else { throw HycryptError.invalidSource }
+                if name != "." && name != ".." {
+                    names.append(name)
+                    if names.count >= DirectoryArchive.maximumEntries {
+                        throw HycryptError.unsafeArchive
+                    }
+                }
             }
             return names.sorted()
         }
@@ -152,6 +180,14 @@ enum DirectoryArchive {
             roots.insert(components[0])
         }
         guard entries > 0, entries == expectedEntries, roots.count == 1 else { throw HycryptError.unsafeArchive }
+        let available = try? destination.deletingLastPathComponent().resourceValues(
+            forKeys: [.volumeAvailableCapacityForImportantUsageKey]
+        ).volumeAvailableCapacityForImportantUsage
+        if let available, available > 0,
+            UInt64(available) < expanded + 256 * 1_024 * 1_024
+        {
+            throw HycryptError.unsafeArchive
+        }
         try manager.createDirectory(
             at: destination, withIntermediateDirectories: false,
             attributes: [.posixPermissions: 0o700])
@@ -177,8 +213,10 @@ enum DirectoryArchive {
                     guard UInt64(data.count) <= entry.uncompressedSize - fileBytes else {
                         throw HycryptError.unsafeArchive
                     }
-                    fileBytes += UInt64(data.count)
-                    try output.write(contentsOf: data)
+                    var chunk = data
+                    defer { SecretMemory.wipe(&chunk) }
+                    fileBytes += UInt64(chunk.count)
+                    try output.write(contentsOf: chunk)
                 }
                 guard fileBytes == entry.uncompressedSize, checksum == entry.checksum else {
                     throw HycryptError.unsafeArchive
@@ -194,11 +232,22 @@ enum DirectoryArchive {
         return root
     }
 
+    /// Strict file-name decoding. Darwin file systems may contain arbitrary non-NUL bytes
+    /// (for example on mounted foreign volumes); lossy U+FFFD replacement could address a
+    /// different file, so fail closed instead.
+    static func decodeName<Bytes: Sequence>(_ bytes: Bytes) -> String? where Bytes.Element == UInt8 {
+        String(bytes: bytes, encoding: .utf8)
+    }
+
     static func safeComponents(_ path: String) throws -> [String] {
-        guard !path.hasPrefix("/"), !path.contains("\\"), !path.contains("\0") else { throw HycryptError.unsafeArchive }
+        guard path.utf8.count <= maximumPathBytes,
+            !path.hasPrefix("/"), !path.contains("\\"), !path.contains("\0")
+        else { throw HycryptError.unsafeArchive }
         var parts = path.split(separator: "/", omittingEmptySubsequences: false).map(String.init)
         if parts.last == "" { parts.removeLast() }
-        guard !parts.isEmpty, parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains(":") }) else {
+        guard !parts.isEmpty, parts.count <= maximumDepth,
+            parts.allSatisfy({ !$0.isEmpty && $0 != "." && $0 != ".." && !$0.contains(":") })
+        else {
             throw HycryptError.unsafeArchive
         }
         return parts

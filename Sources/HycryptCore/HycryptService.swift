@@ -41,8 +41,8 @@ public struct HycryptService: FileProcessing {
         defer { transaction.cleanUp() }
         let payload = transaction.directory.appendingPathComponent("payload")
         let remote = OutputTransaction.plaintextMustStayLocal(relativeTo: destination)
-        var scratch: URL?
-        defer { if let scratch { OutputTransaction.removePrivateDirectory(at: scratch) } }
+        var scratch: OutputTransaction.LocalScratch?
+        defer { scratch?.remove() }
         let result: URL
         switch request.operation {
         case .encrypt:
@@ -85,11 +85,13 @@ public struct HycryptService: FileProcessing {
 
     /// Remote volumes keep the plaintext ZIP on local scratch. Local volumes use private same-volume staging,
     /// which is outside the selected folder.
-    private static func archiveURL(remote: Bool, transaction: OutputTransaction, scratch: inout URL?) throws -> URL {
+    private static func archiveURL(
+        remote: Bool, transaction: OutputTransaction, scratch: inout OutputTransaction.LocalScratch?
+    ) throws -> URL {
         if remote {
             let local = try OutputTransaction.makeLocalScratch()
             scratch = local
-            return local.appendingPathComponent("archive.zip")
+            return local.directory.appendingPathComponent("archive.zip")
         }
         return transaction.directory.appendingPathComponent("archive.zip")
     }

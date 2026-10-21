@@ -7,8 +7,12 @@
 
 #include "argon2.h"
 
-/* argon2_ctx allocates and frees its workspace on the calling thread, and joins any
- * worker threads before returning, so thread-local ownership tracking is sufficient. */
+/* Argon2 is executed single-threaded (context.threads = 1) while retaining
+ * context.lanes = parallelism: the reference implementation's output depends on lanes and
+ * m_cost, not on the execution thread count. This deliberately avoids the upstream
+ * ARGON2_THREAD_FAIL join-failure paths, which return without joining every worker and
+ * would make the shim's workspace release a use-after-free. The workspace still lives on
+ * the calling thread, so thread-local ownership tracking is sufficient. */
 static _Thread_local uint8_t *workspace;
 static _Thread_local size_t workspace_size;
 
@@ -54,7 +58,7 @@ int hycrypt_argon2id_raw(uint32_t t_cost, uint32_t m_cost, uint32_t parallelism,
     context.t_cost = t_cost;
     context.m_cost = m_cost;
     context.lanes = parallelism;
-    context.threads = parallelism;
+    context.threads = 1;
     context.allocate_cbk = allocate;
     context.free_cbk = release;
     /* Wipe the password buffer as soon as it has been absorbed. ARGON2_DEFAULT_FLAGS does not. */

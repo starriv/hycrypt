@@ -132,6 +132,18 @@ final class LocalAuthorization {
         return unlock()
     }
 
+    /// Cancels an in-flight system authentication prompt. The user can retry explicitly;
+    /// no automatic prompt is armed by this action.
+    func cancelAuthentication() {
+        guard isAuthenticating else { return }
+        attempt = nil
+        task?.cancel()
+        task = nil
+        authenticator.cancel()
+        isAuthenticating = false
+        errorMessage = "认证已取消。"
+    }
+
     /// Fixed copy per failure class; framework descriptions and user data are never echoed.
     static func message(for error: any Error) -> String {
         switch (error as? LAError)?.code {

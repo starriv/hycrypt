@@ -9,6 +9,9 @@ portable reference implementation and its dependencies. See LICENSE.
 
 Verified identical to the upstream commit on 2026-10-16; `scripts/verify-vendor.sh`
 pins the files via `Vendor/SHA256SUMS`. Hycrypt does not patch this directory: the
-`CArgon2Shim` target supplies allocation callbacks so a failed derivation (for example
-`ARGON2_THREAD_FAIL`, where upstream skips its own cleanup) still wipes and frees the
-workspace. `scripts/test-argon2-cleanup.sh` exercises that path.
+`CArgon2Shim` target supplies allocation callbacks and executes Argon2 with
+`context.threads = 1` while retaining the format's lanes, so upstream's
+`ARGON2_THREAD_FAIL` join-failure paths are unreachable. A failed derivation still
+wipes and frees the workspace. `Tests/Integration/test-argon2-cleanup.sh` verifies
+that no worker thread is created, successful cleanup, and allocation-failure output
+zeroing.

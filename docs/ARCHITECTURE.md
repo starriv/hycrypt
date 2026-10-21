@@ -51,7 +51,7 @@ flowchart TD
 - `FileCipher` 只接受 V2 协议；未知或损坏的格式头直接报错，没有备用解码路径。
 - `FileIO` 处理有限大小读取、普通文件验证、禁止跟随源文件符号链接、排他创建等底层操作。
 - `DirectoryArchive` 与 `ZIPValidation` 不依赖加密器；ZIP 路径、CRC、条目数量及展开限制保持原行为。
-- `OutputTransaction` 在目标卷的专用临时目录（不在用户所选文件夹内）暂存，并用 `RENAME_EXCL` 发布。锁失败即中止。服务用 `defer` 清理，只有完整结果才发布。网络卷上的明文 ZIP 留在本机临时目录。
+- `OutputTransaction` 在目标卷的专用暂存根暂存（同卷时使用 app 私有临时目录下的 `hycrypt-staging`，跨卷时使用 `itemReplacementDirectory` probe；均不在用户所选文件夹内），并用 `RENAME_EXCL` 发布。锁失败即中止。服务用 `defer` 清理，只有完整结果才发布。网络卷上的明文 ZIP 留在本机临时目录，崩溃遗留的本地 scratch 由下一次操作回收。
 - V2 字节格式与 KDF 参数保持不变。目录恢复由认证头部决定，无需用户选择恢复策略。
 
 ## 测试与维护

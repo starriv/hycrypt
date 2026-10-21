@@ -39,7 +39,7 @@ struct SettingsView: View {
                             .lineLimit(2).truncationMode(.middle)
                             .foregroundStyle(.secondary)
                             .help(settings.outputPath)
-                        if let directory = settings.outputDirectory, OutputExposure.mayLeaveThisMac(directory) {
+                        if settings.outputMayLeaveThisMac {
                             Text("解密到此位置时，明文会随该文件夹同步到其他设备或网络。加密结果仍是密文。")
                                 .font(.caption)
                                 .foregroundStyle(.orange)

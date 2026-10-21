@@ -2,6 +2,7 @@ import Foundation
 
 public enum HycryptError: LocalizedError {
     case passwordWhitespace
+    case passwordTooLong
     case invalidFormat, authenticationFailed, emptyPassword
     case destinationExists, invalidSource, sourceChanged, unsafeArchive, outputInsideSource
     case stagingUnavailable, memoryLockUnavailable
@@ -12,6 +13,7 @@ public enum HycryptError: LocalizedError {
         case .invalidFormat: "文件格式无效、版本不受支持或文件已被截断。"
         case .authenticationFailed: "密码不正确，或文件已损坏 / 被修改。"
         case .passwordWhitespace: "密码中间不能包含空格、Tab 或换行。"
+        case .passwordTooLong: "密码过长，请使用不超过 4096 字节的密码。"
         case .emptyPassword: "请输入密码。"
         case .destinationExists: "目标已存在。请选择其他名称；Hycrypt 不会覆盖现有数据。"
         case .invalidSource: "请选择可读取的普通文件或文件夹。符号链接和特殊文件不受支持。"

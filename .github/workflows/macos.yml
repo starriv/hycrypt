@@ -13,6 +13,8 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
       - name: Swift style and tests
         run: make check
+      - name: Sanitizer smoke
+        run: make sanitize-smoke
       - name: Verify sandbox and signing policy
         run: make security-check
       # Ad-hoc signed development build for testing only; releases are built locally with

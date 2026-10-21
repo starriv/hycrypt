@@ -24,6 +24,11 @@ struct PasswordStrength {
             level = 1
             return
         }
+        // Bound UI work for oversized pasted input; encryption rejects it separately.
+        guard password.utf8.count <= SecretPolicy.maximumPasswordBytes else {
+            level = 1
+            return
+        }
         let characters = Array(password)
         let unique = Set(characters).count
         // Repeating a short pattern must not become "strong" just by adding length.

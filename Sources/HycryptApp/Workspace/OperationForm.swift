@@ -22,7 +22,7 @@ struct OperationForm {
 
     enum ValidationIssue: Error {
         case missingSource, directoryDecryption, missingOutputDirectory, invalidOutputName
-        case emptyPassword, passwordMismatch, passwordWhitespace
+        case emptyPassword, passwordMismatch, passwordWhitespace, passwordTooLong
 
         var message: String {
             switch self {
@@ -31,6 +31,7 @@ struct OperationForm {
             case .missingOutputDirectory: "请选择保存位置。"
             case .invalidOutputName: "请输入有效的输出名称。"
             case .passwordWhitespace: HycryptError.passwordWhitespace.localizedDescription
+            case .passwordTooLong: HycryptError.passwordTooLong.localizedDescription
             case .emptyPassword: "请输入密码。"
             case .passwordMismatch: "两次输入的密码不一致。"
             }
@@ -58,7 +59,18 @@ struct OperationForm {
         let password = SecretPolicy.preparedPassword(password, operation: operation)
         let confirmation = SecretPolicy.preparedPassword(confirmation, operation: operation)
         if password.isEmpty { return .emptyPassword }
-        do { try SecretPolicy.validatePassword(password, operation: operation) } catch { return .passwordWhitespace }
+        do {
+            try SecretPolicy.validatePassword(password, operation: operation)
+        } catch let error as HycryptError {
+            switch error {
+            case .passwordWhitespace: return .passwordWhitespace
+            case .passwordTooLong: return .passwordTooLong
+            case .emptyPassword: return .emptyPassword
+            default: return .emptyPassword
+            }
+        } catch {
+            return .emptyPassword
+        }
         if operation == .encrypt && password != confirmation { return .passwordMismatch }
         return nil
     }

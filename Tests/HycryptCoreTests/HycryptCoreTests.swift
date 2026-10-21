@@ -337,6 +337,40 @@ final class HycryptCoreTests: XCTestCase {
         try assertNoStaging()
     }
 
+    func testDigestAndCopyHonorCancellation() async throws {
+        let source = try write(Data(repeating: 0x41, count: 4_096), "cancel-source")
+        let digestTask = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            let handle = try FileIO.openInput(source)
+            defer { try? handle.close() }
+            return try FileIO.digest(handle, count: 4_096)
+        }
+        do {
+            _ = try await digestTask.value
+            XCTFail("Expected digest cancellation")
+        } catch is CancellationError {}
+        let destination = url("cancel-copy")
+        let copyTask = Task {
+            withUnsafeCurrentTask { $0?.cancel() }
+            try FileIO.copy(source, to: destination)
+        }
+        do {
+            try await copyTask.value
+            XCTFail("Expected copy cancellation")
+        } catch is CancellationError {}
+    }
+
+    func testCommitRejectsSymlinkResult() throws {
+        let destination = url("symlink-out")
+        let transaction = try OutputTransaction(destination: destination)
+        defer { transaction.cleanUp() }
+        let result = transaction.directory.appendingPathComponent("payload")
+        let target = try write(Data("target".utf8), "target")
+        try FileManager.default.createSymbolicLink(at: result, withDestinationURL: target)
+        XCTAssertThrowsError(try transaction.commit(result))
+        XCTAssertFalse(FileManager.default.fileExists(atPath: destination.path))
+    }
+
     func testProgressFractionsAreBounded() {
         XCTAssertEqual(OperationProgress(.encrypting, fraction: -1).fraction, 0)
         XCTAssertEqual(OperationProgress(.encrypting, fraction: 2).fraction, 1)

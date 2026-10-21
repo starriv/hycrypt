@@ -17,6 +17,8 @@ struct LockedView: View {
             if authorization?.isAuthenticating == true {
                 ProgressView()
                     .padding(.top, 4)
+                Button("取消认证") { authorization?.cancelAuthentication() }
+                    .buttonStyle(.borderless)
             } else {
                 Button("重新认证", systemImage: "lock.open") { authorization?.unlock() }
                     .buttonStyle(.borderedProminent)

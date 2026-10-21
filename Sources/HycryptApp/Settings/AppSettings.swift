@@ -1,4 +1,5 @@
 import Foundation
+import HycryptCore
 import Observation
 
 @MainActor
@@ -15,9 +16,11 @@ final class AppSettings {
             defaults.removeObject(forKey: "outputBookmark")
             outputAccess = nil
             accessError = nil
+            refreshOutputExposure()
         }
     }
     private(set) var outputAccess: SecurityScopedAccess?
+    private(set) var outputMayLeaveThisMac = false
     private(set) var accessError: String?
     @ObservationIgnored private let sandboxed: Bool
 
@@ -30,12 +33,13 @@ final class AppSettings {
             defaults.set(bookmark, forKey: "outputBookmark")
             outputAccess = access
             accessError = nil
+            refreshOutputExposure()
         } catch {
             accessError = "无法保存文件夹授权，请重新选择。"
         }
     }
 
-    init(defaults: UserDefaults = .standard, sandboxed: Bool = ApplicationSandbox.isEnabled) {
+    init(defaults: UserDefaults = .standard, sandboxed: Bool = ApplicationSandbox.authorizationRequired) {
         self.sandboxed = sandboxed
         self.defaults = defaults
         let storedInput = defaults.string(forKey: "defaultInput") ?? "file"
@@ -62,6 +66,11 @@ final class AppSettings {
         } else if sandboxed && !outputPath.isEmpty {
             accessError = "请重新授权保存位置。"
         }
+        refreshOutputExposure()
+    }
+
+    private func refreshOutputExposure() {
+        outputMayLeaveThisMac = outputDirectory.map(OutputLocation.mayLeaveThisMac) ?? false
     }
 
     var outputDirectory: URL? {

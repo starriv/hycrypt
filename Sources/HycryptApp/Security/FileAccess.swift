@@ -17,18 +17,38 @@ final class SecurityScopedAccess: @unchecked Sendable {
 }
 
 enum ApplicationSandbox {
-    static let isEnabled: Bool = {
+    enum State: Equatable {
+        case sandboxed
+        case notSandboxed
+        /// Signing information could not be read; treat this like a sandboxed app and
+        /// require explicit output authorization rather than failing open.
+        case unknown
+    }
+
+    static let state: State = {
         var code: SecCode?
-        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return false }
+        guard SecCodeCopySelf([], &code) == errSecSuccess, let code else { return .unknown }
         var staticCode: SecStaticCode?
-        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else { return false }
+        guard SecCodeCopyStaticCode(code, [], &staticCode) == errSecSuccess, let staticCode else {
+            return .unknown
+        }
         var information: CFDictionary?
         guard
             SecCodeCopySigningInformation(staticCode, SecCSFlags(rawValue: kSecCSSigningInformation), &information)
                 == errSecSuccess,
-            let attributes = information as? [String: Any],
-            let entitlements = attributes[kSecCodeInfoEntitlementsDict as String] as? [String: Any]
-        else { return false }
-        return entitlements["com.apple.security.app-sandbox"] as? Bool == true
+            let attributes = information as? [String: Any]
+        else { return .unknown }
+        // An unsigned process can have valid signing information but no entitlements.
+        guard let entitlements = attributes[kSecCodeInfoEntitlementsDict as String] as? [String: Any] else {
+            return .notSandboxed
+        }
+        return entitlements["com.apple.security.app-sandbox"] as? Bool == true ? .sandboxed : .notSandboxed
     }()
+
+    static var isEnabled: Bool { state == .sandboxed }
+    static var authorizationRequired: Bool { authorizationRequired(for: state) }
+
+    static func authorizationRequired(for state: State) -> Bool {
+        state != .notSandboxed
+    }
 }

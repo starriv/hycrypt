@@ -62,6 +62,22 @@ final class SecretPolicyTests: XCTestCase {
         XCTAssertFalse(SecretPolicy.mayDependOnInputMethod("test-only-password-2026"))
     }
 
+    func testEncryptionPasswordLengthAndWhitespacePolicy() throws {
+        let long = String(repeating: "a", count: SecretPolicy.maximumPasswordBytes + 1)
+        XCTAssertThrowsError(try SecretPolicy.validatePassword(long, operation: .encrypt))
+        XCTAssertNoThrow(try SecretPolicy.validatePassword(long, operation: .decrypt))
+        XCTAssertThrowsError(
+            try SecretPolicy.validatePassword(SecretBytes(utf8: long), operation: .encrypt))
+        XCTAssertNoThrow(
+            try SecretPolicy.validatePassword(SecretBytes(utf8: long), operation: .decrypt))
+        XCTAssertThrowsError(
+            try SecretPolicy.validatePassword(SecretBytes(utf8: "a\tb"), operation: .encrypt))
+        XCTAssertThrowsError(
+            try SecretPolicy.validatePassword(SecretBytes(utf8: "a\u{00a0}b"), operation: .encrypt))
+        XCTAssertNoThrow(
+            try SecretPolicy.validatePassword(SecretBytes(utf8: "a\tb"), operation: .decrypt))
+    }
+
     func testMnemonicPreservesExactBytesAndRejectsWrongShape() async throws {
         let input = "  " + Array(repeating: "abandon", count: 23).joined(separator: " ") + "\nart\t"
         let password = try SecretBytes(utf8: "a")

@@ -100,6 +100,18 @@ struct LocalAuthorizationTests {
         #expect(model.form.source?.url == document)
     }
 
+    @Test func userCanCancelAuthentication() async throws {
+        let authenticator = TestAuthenticator()
+        let authorization = LocalAuthorization(authenticator: authenticator)
+        let task = try #require(authorization.unlock())
+        await authenticator.waitUntilStarted()
+        authorization.cancelAuthentication()
+        await task.value
+        #expect(!authorization.isAuthenticating && !authorization.isUnlocked)
+        #expect(authorization.errorMessage != nil)
+        #expect(authenticator.cancellations == 1)
+    }
+
     @Test func lockRejectsLateAuthenticationSuccess() async throws {
         let authenticator = TestAuthenticator()
         let authorization = LocalAuthorization(authenticator: authenticator)
@@ -214,6 +226,35 @@ struct LocalAuthorizationTests {
         #expect(!text.isRevealed)
     }
 
+    @Test func deactivationLocksTextModeAndDropsDecryptedPlaintext() async throws {
+        let authenticator = TestAuthenticator()
+        let authorization = LocalAuthorization(authenticator: authenticator, startsUnlocked: true)
+        let model = WorkspaceModel(processor: ControlledFileProcessor(), authorization: authorization)
+        model.inputKind = .text
+        let ciphertext = try await TextCipher.process(
+            "deactivation-secret", password: SecretBytes(utf8: "test-only-password-2026"),
+            operation: .encrypt)
+        model.text.input = ciphertext
+        model.text.password = "test-only-password-2026"
+        await model.text.start(.decrypt)?.value
+        guard case .succeeded = model.text.state else {
+            Issue.record("Expected a completed text decryption")
+            return
+        }
+        model.conceal()
+        #expect(!model.isAuthorized)
+        #expect(model.isObscured)
+        #expect(model.text.state == .idle)
+        #expect(model.text.password.isEmpty)
+        #expect(model.form.password.isEmpty)
+        let task = try #require(model.resume())
+        #expect(authorization.isAuthenticating)
+        await authenticator.waitUntilStarted()
+        authenticator.finish(success: true)
+        await task.value
+        #expect(model.isAuthorized && !model.isObscured)
+    }
+
     @Test func bookmarkRoundTripAndExplicitReset() throws {
         let temporary = TemporaryDefaults("bookmark")
         let defaults = temporary.defaults
@@ -273,7 +314,11 @@ private final class TestAuthenticator: LocalAuthenticating {
         continuation = nil
     }
 
-    func cancel() { cancellations += 1 }
+    func cancel() {
+        cancellations += 1
+        continuation?.resume(throwing: CancellationError())
+        continuation = nil
+    }
 }
 
 @MainActor

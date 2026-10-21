@@ -6,6 +6,7 @@ let package = Package(
     platforms: [.macOS(.v14)],
     products: [
         .executable(name: "Hycrypt", targets: ["HycryptApp"]),
+        .executable(name: "HycryptSandboxFileProbe", targets: ["HycryptSandboxFileProbe"]),
         .library(name: "HycryptCore", targets: ["HycryptCore"]),
     ],
     dependencies: [
@@ -22,6 +23,11 @@ let package = Package(
         .target(name: "CArgon2Shim", dependencies: ["CArgon2"]),
         .target(name: "HycryptCore", dependencies: ["CArgon2", "CArgon2Shim", "ZIPFoundation"]),
         .executableTarget(name: "HycryptApp", dependencies: ["HycryptCore"]),
+        // Integration probe signed with the production entitlements; built by
+        // Test/Integration/test-sandbox-file.sh, never bundled into Hycrypt.app.
+        .executableTarget(
+            name: "HycryptSandboxFileProbe", dependencies: ["HycryptCore"],
+            path: "Tests/Integration/SandboxFileProbe"),
         .testTarget(
             name: "HycryptCoreTests", dependencies: ["HycryptCore", "ZIPFoundation"]),
         .testTarget(name: "HycryptAppTests", dependencies: ["HycryptApp"]),

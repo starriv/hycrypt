@@ -165,6 +165,30 @@ private final class Locked<Value>: @unchecked Sendable {
 }
 
 final class StagingRecoveryTests: XCTestCase {
+    func testAbandonedLocalScratchIsRemovedButLiveScratchIsPreserved() throws {
+        let manager = FileManager.default
+        let live = try OutputTransaction.makeLocalScratch()
+        defer { live.remove() }
+        try Data("synthetic plaintext".utf8).write(to: live.directory.appendingPathComponent("payload"))
+        try manager.setAttributes(
+            [.creationDate: Date().addingTimeInterval(-3_600)], ofItemAtPath: live.directory.path)
+
+        let stale = manager.temporaryDirectory.appendingPathComponent(
+            OutputTransaction.scratchPrefix + UUID().uuidString, isDirectory: true)
+        try manager.createDirectory(
+            at: stale, withIntermediateDirectories: false, attributes: [.posixPermissions: 0o700])
+        try Data("stale plaintext".utf8).write(to: stale.appendingPathComponent("payload"))
+        try manager.setAttributes(
+            [.creationDate: Date().addingTimeInterval(-3_600)], ofItemAtPath: stale.path)
+        defer { try? manager.removeItem(at: stale) }
+
+        OutputTransaction.removeAbandonedScratch()
+        XCTAssertTrue(manager.fileExists(atPath: live.directory.path))
+        XCTAssertFalse(manager.fileExists(atPath: stale.path))
+        live.remove()
+        XCTAssertFalse(manager.fileExists(atPath: live.directory.path))
+    }
+
     func testOnlyAbandonedStagingIsRemoved() throws {
         let manager = FileManager.default
         let root = manager.temporaryDirectory.appendingPathComponent("hycrypt-staging-" + UUID().uuidString)

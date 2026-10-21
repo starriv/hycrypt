@@ -17,7 +17,8 @@ struct PasswordOptions: View {
                     RevealablePasswordField(
                         text: $password,
                         prompt: operation == .encrypt ? "输入便于记忆的密码" : "输入加密时使用的密码",
-                        label: "密码", focusRequest: focusRequest
+                        label: "密码", focusRequest: focusRequest,
+                        maximumBytes: passwordLimit
                     )
                     .frame(maxWidth: .infinity, minHeight: 22)
                 }
@@ -28,8 +29,11 @@ struct PasswordOptions: View {
                     }
                     GridRow {
                         fieldLabel("确认密码")
-                        RevealablePasswordField(text: $confirmation, prompt: "再次输入密码", label: "确认密码")
-                            .frame(maxWidth: .infinity, minHeight: 22)
+                        RevealablePasswordField(
+                            text: $confirmation, prompt: "再次输入密码", label: "确认密码",
+                            maximumBytes: passwordLimit
+                        )
+                        .frame(maxWidth: .infinity, minHeight: 22)
                     }
                     if !confirmation.isEmpty
                         && SecretPolicy.preparedPassword(password, operation: operation)
@@ -46,6 +50,11 @@ struct PasswordOptions: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
         }
+    }
+
+    /// New passwords are capped; decryption keeps legacy passwords readable.
+    private var passwordLimit: Int {
+        operation == .encrypt ? SecretPolicy.maximumPasswordBytes : Int.max
     }
 
     private func fieldLabel(_ title: String) -> some View {
@@ -95,6 +104,7 @@ private struct RevealablePasswordField: View {
     let prompt: String
     let label: String
     var focusRequest = 0
+    var maximumBytes = Int.max
     @State private var isRevealed = false
     @State private var selection = NSRange(location: 0, length: 0)
     @Environment(\.isEnabled) private var isEnabled
@@ -103,7 +113,7 @@ private struct RevealablePasswordField: View {
         HStack(spacing: 8) {
             SecurePasswordField(
                 text: $text, prompt: prompt, label: label, focusRequest: focusRequest,
-                isRevealed: isRevealed, selection: $selection
+                maximumBytes: maximumBytes, isRevealed: isRevealed, selection: $selection
             )
             .id(isRevealed)
             Button {
@@ -133,6 +143,7 @@ struct SecurePasswordField: NSViewRepresentable {
     let prompt: String
     let label: String
     var focusRequest = 0
+    var maximumBytes = Int.max
     var isRevealed = false
     @Binding var selection: NSRange
     @Environment(\.isEnabled) private var isEnabled
@@ -188,6 +199,7 @@ struct SecurePasswordField: NSViewRepresentable {
         field.stringValue = ""
     }
 
+    @MainActor
     final class Coordinator: NSObject, NSTextFieldDelegate {
         var parent: SecurePasswordField
         var focusRequest = 0
@@ -212,6 +224,19 @@ struct SecurePasswordField: NSViewRepresentable {
                 let editor = field.currentEditor()
             else { return }
             parent.selection = editor.selectedRange
+        }
+
+        func control(
+            _ control: NSControl, textView: NSTextView,
+            shouldChangeTextIn affectedCharRange: NSRange, replacementString: String?
+        ) -> Bool {
+            let replacement = replacementString ?? ""
+            let current = textView.string as NSString
+            guard affectedCharRange.location <= current.length,
+                affectedCharRange.length <= current.length - affectedCharRange.location
+            else { return false }
+            let next = current.replacingCharacters(in: affectedCharRange, with: replacement)
+            return next.utf8.count <= parent.maximumBytes
         }
 
         func controlTextDidChange(_ notification: Notification) {

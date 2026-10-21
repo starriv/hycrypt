@@ -3,6 +3,7 @@ import SwiftUI
 struct ContentView: View {
     let fileActions: MacFileActions
     @Bindable var model: WorkspaceModel
+    @State private var syncWarning: String?
 
     init(model: WorkspaceModel, fileActions: MacFileActions) {
         self.model = model
@@ -22,11 +23,16 @@ struct ContentView: View {
         .onAppear {
             // A fresh session opens directly; an existing locked session requests authentication.
             model.resume()
+            updateSyncWarning()
         }
         .onOpenURL(perform: model.selectSource)
-        .onChange(of: model.settings.outputPath) { model.refreshOutputDirectory() }
-        .onChange(of: model.isBusy) { if !model.isBusy { model.refreshOutputDirectory() } }
-        .onChange(of: model.canAccessWindows) { if model.canAccessWindows { model.applyPendingSource() } }
+        .onChange(of: model.settings.outputPath) { _, _ in model.refreshOutputDirectory() }
+        .onChange(of: model.isBusy) { _, isBusy in if !isBusy { model.refreshOutputDirectory() } }
+        .onChange(of: model.canAccessWindows) { _, canAccess in if canAccess { model.applyPendingSource() } }
+        .onChange(of: model.form.operation) { _, _ in updateSyncWarning() }
+        .onChange(of: model.form.outputDirectory) { _, _ in updateSyncWarning() }
+        .onChange(of: model.form.source) { _, _ in updateSyncWarning() }
+        .onChange(of: model.inputKind) { _, _ in updateSyncWarning() }
         .focusedSceneValue(
             \.openSource, OpenSourceAction(isEnabled: !model.isBusy && model.canAccessWindows, perform: chooseSource)
         )
@@ -58,8 +64,7 @@ struct ContentView: View {
                         isEnabled: !model.isBusy, choose: chooseSource, select: model.selectSource)
                     OutputOptions(
                         directory: model.form.outputDirectory, name: $model.form.outputName,
-                        syncWarning: model.form.operation == .decrypt
-                            ? OutputExposure.decryptWarning(for: model.form.outputDirectory) : nil,
+                        syncWarning: syncWarning,
                         choose: chooseOutput
                     )
                     .disabled(model.isBusy)
@@ -128,6 +133,21 @@ struct ContentView: View {
         }
     }
 
+    private func updateSyncWarning() {
+        guard model.inputKind == .file, let directory = model.form.outputDirectory else {
+            syncWarning = nil
+            return
+        }
+        switch model.form.operation {
+        case .decrypt:
+            syncWarning = OutputExposure.decryptWarning(for: directory)
+        case .encrypt:
+            syncWarning =
+                model.form.source?.isDirectory == true
+                ? OutputExposure.directoryEncryptionWarning(for: directory) : nil
+        }
+    }
+
     private func chooseSource() {
         guard !model.isBusy, model.canAccessWindows else { return }
         Task { @MainActor in
@@ -149,7 +169,7 @@ struct ContentView: View {
     private func startFile() {
         guard !model.isBusy, model.canAccessWindows else { return }
         // A file-selection grant does not authorize writing its parent directory.
-        if ApplicationSandbox.isEnabled && !model.hasOutputAuthorization {
+        if ApplicationSandbox.authorizationRequired && !model.hasOutputAuthorization {
             Task { @MainActor in
                 if let url = await fileActions.chooseOutputDirectory(initial: model.form.outputDirectory) {
                     guard model.canAccessWindows else { return }

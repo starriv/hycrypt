@@ -56,10 +56,12 @@ enum FileIO {
 
     /// SHA-256 of the first `count` bytes. Used to detect a same-size rewrite that restores mtime.
     static func digest(_ handle: FileHandle, count: UInt64) throws -> SHA256.Digest {
+        try Task.checkCancellation()
         try handle.seek(toOffset: 0)
         var hasher = SHA256()
         var remaining = count
         while remaining > 0 {
+            try Task.checkCancellation()
             let expected = Int(min(UInt64(bufferSize), remaining))
             var chunk = try handle.read(upToCount: expected) ?? Data()
             defer { SecretMemory.wipe(&chunk) }
@@ -76,6 +78,7 @@ enum FileIO {
         let output = try createOutput(destination)
         defer { try? output.close() }
         while true {
+            try Task.checkCancellation()
             var chunk = try input.read(upToCount: bufferSize) ?? Data()
             defer { SecretMemory.wipe(&chunk) }
             if chunk.isEmpty { break }

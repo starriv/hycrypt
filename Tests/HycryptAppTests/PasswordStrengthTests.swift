@@ -9,6 +9,7 @@ struct PasswordStrengthTests {
         #expect(PasswordStrength("short-A9!").level == 1)
         #expect(PasswordStrength(String(repeating: "x", count: 100)).level == 1)
         #expect(PasswordStrength(String(repeating: "长口令", count: 400)).level == 1)
+        #expect(PasswordStrength(String(repeating: "x", count: 5_000)).level == 1)
     }
 
     @Test func lengthDoesNotRewardRepeatedOrCommonPatterns() {
